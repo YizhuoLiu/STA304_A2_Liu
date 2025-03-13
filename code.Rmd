@@ -83,6 +83,22 @@ web_data_cleaned <- web_data_cleaned %>%
 ```
 
 ```{R}
+###vote choices
+web_choice_counts<- web_data_cleaned %>%
+  group_by(cps19_votechoice) %>%
+  summarise(count = n()) %>%
+  mutate(Survey = "Web Survey")
+
+ggplot(web_choice_counts, aes(x = cps19_votechoice, y = count, fill = Survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "vote Distribution",
+       x = "Party",
+       y = "Count",
+       fill = "Survey Source")
+
+
 ###education
 web_education_counts <- web_data_cleaned %>%
   group_by(cps19_education) %>%
@@ -149,6 +165,9 @@ ggplot(web_gender_counts, aes(x = cps19_gender, y = count, fill = Survey)) +
 
 ```{R}
 
+web_data_cleaned<- web_data_cleaned %>% 
+  filter(cps19_votechoice != "Don’t know/Prefer not to answer")
+
 web_data_cleaned <- web_data_cleaned %>%
   filter(!is.na(province))
 
@@ -184,7 +203,7 @@ result <- data.frame(
   Value = c(p_hat, SE, CI_lower, CI_upper)
 )
 
-print(result)
+result
 
 ```
 ```{R}
@@ -203,7 +222,6 @@ glm_data <- glm_data %>%
 
 ```
 
-dafdsaf
 
 ```{R}
 
@@ -214,7 +232,7 @@ strata.design <- svydesign(id = ~1,
                            data = glm_data)
 
 
-mysvyglm <- svyglm(vote_liberal ~ age + province,
+mysvyglm <- svyglm(vote_liberal ~  province,
                    family = "binomial",
                    strata.design)
 
