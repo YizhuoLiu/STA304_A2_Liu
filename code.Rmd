@@ -1,0 +1,225 @@
+
+```{R}
+
+
+# Load necessary libraries
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(survey)
+
+# Load the datasets
+phone_data <- read_csv("ces_phone.csv")
+web_data <- read_csv("ces_web.csv")
+
+# Rename province columns for clarity
+phone_data <- phone_data %>% rename(province = q4)
+web_data <- web_data %>% rename(province = cps19_province)
+
+phone_data$province <- as.factor(phone_data$province)
+web_data$province <- as.factor(web_data$province)
+
+phone_data <- phone_data %>% mutate(Survey = "Phone Survey")
+web_data <- web_data %>% mutate(Survey = "Web Survey")
+
+```
+
+
+```{R}
+web_data_cleaned <- web_data %>% 
+  filter(!is.na(cps19_votechoice))
+                                        
+web_data_cleaned <- web_data_cleaned %>%
+  mutate(
+    cps19_votechoice = case_when(
+      cps19_votechoice == 1 ~ "Liberals",
+      cps19_votechoice == 2 ~ "Conservatives",
+      cps19_votechoice == 3 ~ "NDP",
+      cps19_votechoice == 4 ~ "Bloc Quebec",
+      cps19_votechoice == 5 ~ "Green Party",
+      cps19_votechoice == 6 ~ "People’s Party",
+      cps19_votechoice == 7 ~ "Other",
+      cps19_votechoice == 9 ~ "Don’t know/Prefer not to answer",
+      TRUE ~ as.character(cps19_votechoice)
+    ),
+    cps19_gender= case_when(
+      cps19_gender == 1 ~ "Man",
+      cps19_gender == 2 ~ "Women",
+      cps19_gender == 3 ~ "Other",
+    ),
+    cps19_education = case_when(
+        cps19_education == 1 ~ "No schooling",
+        cps19_education == 2 ~ "Some elementary school",
+        cps19_education == 3 ~ "Completed elementary school",
+        cps19_education == 4 ~ "Some high school",
+        cps19_education == 5 ~ "High school",
+        cps19_education == 6 ~ "Some community college",
+        cps19_education == 7 ~ "Community college.",
+        cps19_education == 8 ~ "Some university",
+        cps19_education == 9 ~ "Bachelor’s degree",
+        cps19_education == 10 ~ "Master’s degree",
+        cps19_education == 11 ~ "doctorate",
+        cps19_education == 12 ~ "Prefer not to answer",
+        TRUE ~ as.character(cps19_education)
+
+    ),
+    province = case_when(
+      province == 14 ~ "Alberta",
+      province == 15 ~ "British Columbia",
+      province == 16 ~ "Manitoba",
+      province == 17 ~ "New Brunswick",
+      province == 18 ~ "Newfoundland & Labrador",
+      province == 19 ~ "Northwest Territories",
+      province == 20 ~ "Nova Scotia",
+      province == 21 ~ "Nunavut",
+      province == 22 ~ "Ontario",
+      province == 23 ~ "Prince Edward Island",
+      province == 24 ~ "Quebec",
+      province == 25 ~ "Saskatchewan",
+      province == 26 ~ "Yukon",
+      TRUE ~ as.character(province)
+    )
+  )
+```
+
+```{R}
+###education
+web_education_counts <- web_data_cleaned %>%
+  group_by(cps19_education) %>%
+  summarise(count = n()) %>%
+  mutate(Survey = "Web Survey",
+         cps19_education = factor(cps19_education, levels = c(
+           "No schooling",
+           "Some elementary school",
+           "Completed elementary school",
+           "Some high school",
+           "High school",
+           "Some community college",
+           "Community college.",
+           "Some university",
+           "Bachelor’s degree",
+           "Master’s degree",
+           "doctorate",
+           "Prefer not to answer"
+         ))) 
+
+ggplot(web_education_counts, aes(x = cps19_education, y = count, fill = Survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Education Distribution",
+       x = "Education",
+       y = "Count",
+       fill = "Survey Source")
+
+
+###province
+web_province_counts <- web_data_cleaned %>%
+  group_by(province) %>%
+  summarise(count = n()) %>%
+  mutate(Survey = "Web Survey")
+
+ggplot(web_province_counts, aes(x = province, y = count, fill = Survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Province Distribution",
+       x = "Province",
+       y = "Count",
+       fill = "Survey Source")
+
+
+###gender
+web_gender_counts <- web_data_cleaned %>%
+  group_by(cps19_gender) %>%
+  summarise(count = n()) %>%
+  mutate(Survey = "Web Survey")
+
+ggplot(web_gender_counts, aes(x = cps19_gender, y = count, fill = Survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "gender Distribution",
+       x = "Education",
+       y = "Count",
+       fill = "Survey Source")
+
+```
+
+
+```{R}
+
+web_data_cleaned <- web_data_cleaned %>%
+  filter(!is.na(province))
+
+strata_population <- web_data_cleaned %>%
+  group_by(province) %>%
+  summarise(Nh = n(), .groups = "drop") 
+
+strata_sample <- web_data_cleaned %>%
+  filter(cps19_votechoice == "Liberals") %>%
+  group_by(province) %>%
+  summarise(nh = n(), .groups = "drop")
+
+strata_data <- left_join(strata_population, strata_sample, by = "province")
+
+strata_data <- strata_data %>%
+  mutate(nh = ifelse(is.na(nh), 0, nh), 
+         ph = ifelse(nh == 0, 0, nh / Nh),
+         Wh = Nh / sum(Nh))
+
+p_hat <- sum(strata_data$Wh * strata_data$ph, na.rm = TRUE)
+
+strata_data <- strata_data %>%
+  mutate(var_h = ifelse(nh == 0, 0, (ph * (1 - ph)) / nh))  # Avoid division by zero
+
+SE <- sqrt(sum(strata_data$Wh^2 * strata_data$var_h, na.rm = TRUE))
+
+z_value <- qnorm(0.975)  # For 95% confidence
+CI_lower <- p_hat - z_value * SE
+CI_upper <- p_hat + z_value * SE
+
+result <- data.frame(
+  Statistic = c("Estimated Proportion", "Standard Error", "Lower 95% CI", "Upper 95% CI"),
+  Value = c(p_hat, SE, CI_lower, CI_upper)
+)
+
+print(result)
+
+```
+```{R}
+glm_data <- web_data_cleaned %>%
+  select(cps19_votechoice, province, cps19_gender, cps19_education)
+glm_data <- glm_data %>% filter(!is.na(province))
+
+glm_data <- glm_data %>%
+  group_by(province) %>%
+  mutate(pop_fpc = n()) %>% ungroup()%>% 
+  group_by(province,cps19_votechoice)%>%
+  mutate(samp_wt = n()/pop_fpc) %>% ungroup()
+  
+glm_data <- glm_data %>%
+  mutate(vote_liberal = ifelse(cps19_votechoice == "Liberals", 1, 0))
+         
+```
+
+
+
+```{R}
+
+strata.design <- svydesign(id = ~1,
+                           strata = ~ province, 
+                           weights = ~samp_wt, 
+                           fpc = ~pop_fpc, 
+                           data = glm_data)
+
+
+mysvyglm <- svyglm(vote_liberal ~ age + province,
+                   family = "binomial",
+                   strata.design)
+
+summary(mysvyglm)
+```
+
+
+
