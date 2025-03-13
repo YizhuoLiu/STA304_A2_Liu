@@ -200,10 +200,10 @@ glm_data <- glm_data %>%
   
 glm_data <- glm_data %>%
   mutate(vote_liberal = ifelse(cps19_votechoice == "Liberals", 1, 0))
-         
+
 ```
 
-
+dafdsaf
 
 ```{R}
 
