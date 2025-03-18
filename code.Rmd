@@ -1,30 +1,11 @@
-
-
-```{R}
-#load dataset
-install.packages("cesR")
-```
-```{R}
-library(cesR)
-get_preview("ces2019_web", 10)
-
-```
-```{R}
-get_preview("ces2019_web", 10)
-
-```
-
-
 ```{R}
 
-library(cesR)
 
 # Load necessary libraries
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
 library(survey)
-
 
 # Load the datasets
 phone_data <- read_csv("ces_phone.csv")
@@ -226,8 +207,11 @@ result
 ```
 ```{R}
 glm_data <- web_data_cleaned %>%
-  select(cps19_votechoice, province, cps19_gender, cps19_education)
+  select(cps19_yob,cps19_votechoice, province, cps19_gender, cps19_education)
 glm_data <- glm_data %>% filter(!is.na(province))
+glm_data <- glm_data %>%
+  mutate(cps19_yob =2019 - (cps19_yob+1919))
+  
 
 glm_data <- glm_data %>%
   group_by(province) %>%
@@ -250,12 +234,13 @@ strata.design <- svydesign(id = ~1,
                            data = glm_data)
 
 
-mysvyglm <- svyglm(vote_liberal ~  province,
+mysvyglm <- svyglm(vote_liberal ~  province + cps19_yob,
                    family = "binomial",
                    strata.design)
 
 summary(mysvyglm)
 ```
+
 
  
 
