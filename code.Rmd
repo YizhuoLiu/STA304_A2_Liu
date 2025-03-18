@@ -1,12 +1,30 @@
 
+
+```{R}
+#load dataset
+install.packages("cesR")
+```
+```{R}
+library(cesR)
+get_preview("ces2019_web", 10)
+
+```
+```{R}
+get_preview("ces2019_web", 10)
+
+```
+
+
 ```{R}
 
+library(cesR)
 
 # Load necessary libraries
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
 library(survey)
+
 
 # Load the datasets
 phone_data <- read_csv("ces_phone.csv")
@@ -239,5 +257,5 @@ mysvyglm <- svyglm(vote_liberal ~  province,
 summary(mysvyglm)
 ```
 
-
+ 
 
